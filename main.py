@@ -8,6 +8,9 @@ import time
 # GPIO
 import RPi.GPIO as GPIO # RPi.GPIOモジュールを使用
 
+gpsLatitude = 0.0
+gpsLongitude = 0.0
+
 gps = micropyGPS.MicropyGPS(9, 'dd') # MicroGPSオブジェクトを生成する。
                                      # 引数はタイムゾーンの時差と出力フォーマット
 
@@ -27,6 +30,7 @@ gpsthread.start() # スレッドを起動
 
 def event_callback(gpio_pin):
     print("GPIO[ %d ]のコールバックが発生しました" % gpio_pin)
+    print('緯度経度: %2.8f, %2.8f' % (gpsLatitude, gpsLongitude))
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN)
@@ -36,6 +40,8 @@ while True:
     
     if gps.clean_sentences > 20: # ちゃんとしたデーターがある程度たまったら出力する
         h = gps.timestamp[0] if gps.timestamp[0] < 24 else gps.timestamp[0] - 24
-        print('緯度経度: %2.8f, %2.8f' % (gps.latitude[0], gps.longitude[0]))
-        print('')
+        gpsLatitude = gps.latitude[0]
+        gpsLongitude = gps.longitude[0]
+        # print('緯度経度: %2.8f, %2.8f' % (gps.latitude[0], gps.longitude[0]))
+        # print('')
     time.sleep(3.0)
