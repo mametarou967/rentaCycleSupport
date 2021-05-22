@@ -7,7 +7,10 @@ import threading
 import time
 # GPIO
 import RPi.GPIO as GPIO # RPi.GPIOモジュールを使用
+# CSV
+import csv
 
+# GPS setup
 gpsLatitude = 0.0
 gpsLongitude = 0.0
 
@@ -28,6 +31,7 @@ gpsthread = threading.Thread(target=rungps, args=()) # 上の関数を実行す�
 gpsthread.daemon = True
 gpsthread.start() # スレッドを起動
 
+# Button setup
 def event_callback(gpio_pin):
     print("GPIO[ %d ]のコールバックが発生しました" % gpio_pin)
     print('緯度経度: %2.8f, %2.8f' % (gpsLatitude, gpsLongitude))
@@ -35,6 +39,15 @@ def event_callback(gpio_pin):
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN)
 GPIO.add_event_detect(18, GPIO.RISING, callback=event_callback, bouncetime=200)
+
+# Csv setup
+with open('portList.csv',encoding="utf_8") as file:
+    reader = csv.reader(file)
+    
+    for row in reader:
+        tmpLatitude = float(row[0])
+        tmpLongitude = float(row[1])
+        print('緯度経度: %2.8f, %2.8f' % (tmpLatitude,tmpLongitude))
 
 while True:
     
