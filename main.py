@@ -1,5 +1,6 @@
 # coding: utf-8
-
+import webbrowser ,sys
+import urllib.parse
 # GPS
 import serial
 import micropyGPS
@@ -9,10 +10,12 @@ import time
 import RPi.GPIO as GPIO # RPi.GPIOモジュールを使用
 # CSV
 import csv
+import math
 
 # GPS setup
 gpsLatitude = 0.0
 gpsLongitude = 0.0
+rentaCyclePortList = []
 
 gps = micropyGPS.MicropyGPS(9, 'dd') # MicroGPSオブジェクトを生成する。
                                      # 引数はタイムゾーンの時差と出力フォーマット
@@ -33,21 +36,38 @@ gpsthread.start() # スレッドを起動
 
 # Button setup
 def event_callback(gpio_pin):
+    #for row in rentaCyclePortList:
+    #    print('緯度経度: %2.8f, %2.8f' % (row[0],row[1]))
     print("GPIO[ %d ]のコールバックが発生しました" % gpio_pin)
-    print('緯度経度: %2.8f, %2.8f' % (gpsLatitude, gpsLongitude))
+    print('current緯度経度: %2.8f, %2.8f' % (gpsLatitude, gpsLongitude))
+    nearPointResult = nearPoint(gpsLatitude,gpsLongitude,rentaCyclePortList)
+    print('near緯度経度: %2.8f, %2.8f' % (nearPointResult[0], nearPointResult[1]))
+    webbrowser.open("https://www.google.com/maps/dir/?api=1&origin=%2.8f,%2.8f&destination=%2.8f,%2.8f&travelmode=walking" % (gpsLatitude,gpsLongitude,nearPointResult[0], nearPointResult[1]),2,True)
+    # webbrowser.open("https://www.google.com/maps/dir/?api=1&origin=34.356722,132.337222&destination=34.4418632303169,132.41688967757966&travelmode=walking",2,True)
+    
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN)
 GPIO.add_event_detect(18, GPIO.RISING, callback=event_callback, bouncetime=200)
 
 # Csv setup
+# 複数の座標のうちx, yに一番近い座標を求める
+
+def nearPoint(x, y, points):
+	result = [0.0,0.0]
+	stdval = 100.0
+	for point in points:
+		distance = math.sqrt((point[0] - x) ** 2 + (point[1] - y) ** 2)
+		if distance < stdval:
+			result = (point[0],point[1])
+			stdval = distance
+	return result
+
 with open('portList.csv',encoding="utf_8") as file:
     reader = csv.reader(file)
     
     for row in reader:
-        tmpLatitude = float(row[0])
-        tmpLongitude = float(row[1])
-        print('緯度経度: %2.8f, %2.8f' % (tmpLatitude,tmpLongitude))
+        rentaCyclePortList.append((float(row[0]),float(row[1])))
 
 while True:
     
