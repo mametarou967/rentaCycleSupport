@@ -3,6 +3,7 @@ import webbrowser ,sys
 import urllib.parse
 import requests
 import json
+import datetime
 # GPS
 import serial
 import micropyGPS
@@ -41,29 +42,22 @@ gpsthread = threading.Thread(target=rungps, args=()) # 上の関数を実行す�
 gpsthread.daemon = True
 gpsthread.start() # スレッドを起動
 
-# Button setup
-def event_callback(gpio_pin):
-    #for row in rentaCyclePortList:
-    #    print('緯度経度: %2.8f, %2.8f' % (row[0],row[1]))
-    print("GPIO[ %d ]のコールバックが発生しました" % gpio_pin)
-    print('current緯度経度: %2.8f, %2.8f' % (gpsLatitude, gpsLongitude))
+def open_route_map():
     nearPointResult = nearPoint(gpsLatitude,gpsLongitude,rentaCyclePortList)
     print('near緯度経度: %2.8f, %2.8f' % (nearPointResult[0], nearPointResult[1]))
+    webbrowser.open("https://www.google.com/maps/dir/?api=1&origin=%2.8f,%2.8f&destination=%2.8f,%2.8f&travelmode=walking" % (gpsLatitude,gpsLongitude,nearPointResult[0], nearPointResult[1]),2,True)
+
+# Button setup
+def event_callback(gpio_pin):
+    print("GPIO[ %d ]のコールバックが発生しました" % gpio_pin)
+    print('current緯度経度: %2.8f, %2.8f' % (gpsLatitude, gpsLongitude))
     if gpsValid == True:
-        webbrowser.open("https://www.google.com/maps/dir/?api=1&origin=%2.8f,%2.8f&destination=%2.8f,%2.8f&travelmode=walking" % (gpsLatitude,gpsLongitude,nearPointResult[0], nearPointResult[1]),2,True)
-    # webbrowser.open("https://www.google.com/maps/dir/?api=1&origin=34.356722,132.337222&destination=34.4418632303169,132.41688967757966&travelmode=walking",2,True)
+        open_route_map()
     
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN)
 GPIO.add_event_detect(18, GPIO.RISING, callback=event_callback, bouncetime=200)
-
-# Timer setup
-def helloWorld():
-    print("hello World")
-
-tim = threading.Timer(1,helloWorld)
-tim.start()
 
 def checkWeather(iLat,iLon):
     url = "http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&APPID={key}"
@@ -72,12 +66,12 @@ def checkWeather(iLat,iLon):
     data = response.json()
     weather = data["weather"][0]["main"]
 
+    print(datetime.datetime.now(),end='')
+    print(" [weather]:" + weather)
     if((weather == "broken clouds") or (weather == "shower rain") or (weather == "rain") or (weather == "thunderstorm") or (weather == "snow") or (weather == "mist")
        ):
-        print("weather bad")
         return False
     else:
-        print("weather good")
         return True
 
 # Csv setup
@@ -114,7 +108,10 @@ while True:
     
     elapsed_time = time.time() - start
     if(badWeather == False and elapsed_time > WEATHER_CONFIRM_INTERVAL):
-        GPIO.output(16,True)
-        if(gpsValid == True and checkWeather(gpsLatitude,gpsLongitude)):
+        if(gpsValid == True and checkWeather(gpsLatitude,gpsLongitude) == False):
+            print('bad weather -> open map')
+            GPIO.output(16,True)
             badWeather = True
+            open_route_map()
+        start = time.time()
     time.sleep(3.0)
